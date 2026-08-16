@@ -18,6 +18,8 @@ const EMPTY_PROFILE: ProfileInput = { weight: "", height: "", age: "", gender: "
 export default function VoedingsTracker() {
   const [view, setView] = useState<View>("log");
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const [profile, setProfile] = useState<ProfileInput>(EMPTY_PROFILE);
   const [steps, setSteps] = useState("");
@@ -29,31 +31,47 @@ export default function VoedingsTracker() {
 
   // ---- initial load ----
   useEffect(() => {
+    let cancelled = false;
+    setLoadError(null);
+
     (async () => {
-      const [profileRes, mealsRes, exercisesRes, stepsRes] = await Promise.all([
-        fetch("/api/profile"),
-        fetch("/api/meals"),
-        fetch("/api/exercises"),
-        fetch("/api/steps"),
-      ]);
-      const [profileData, mealsData, exercisesData, stepsData] = await Promise.all([
-        profileRes.json(),
-        mealsRes.json(),
-        exercisesRes.json(),
-        stepsRes.json(),
-      ]);
-      setProfile({
-        weight: profileData.weight != null ? String(profileData.weight) : "",
-        height: profileData.height != null ? String(profileData.height) : "",
-        age: profileData.age != null ? String(profileData.age) : "",
-        gender: profileData.gender === "vrouw" ? "vrouw" : "man",
-      });
-      setMealLog(mealsData);
-      setExerciseLog(exercisesData);
-      setSteps(stepsData.steps ? String(stepsData.steps) : "");
-      setLoaded(true);
+      try {
+        const [profileRes, mealsRes, exercisesRes, stepsRes] = await Promise.all([
+          fetch("/api/profile"),
+          fetch("/api/meals"),
+          fetch("/api/exercises"),
+          fetch("/api/steps"),
+        ]);
+        for (const res of [profileRes, mealsRes, exercisesRes, stepsRes]) {
+          if (!res.ok) throw new Error(`Server gaf status ${res.status} terug.`);
+        }
+        const [profileData, mealsData, exercisesData, stepsData] = await Promise.all([
+          profileRes.json(),
+          mealsRes.json(),
+          exercisesRes.json(),
+          stepsRes.json(),
+        ]);
+        if (cancelled) return;
+        setProfile({
+          weight: profileData.weight != null ? String(profileData.weight) : "",
+          height: profileData.height != null ? String(profileData.height) : "",
+          age: profileData.age != null ? String(profileData.age) : "",
+          gender: profileData.gender === "vrouw" ? "vrouw" : "man",
+        });
+        setMealLog(mealsData);
+        setExerciseLog(exercisesData);
+        setSteps(stepsData.steps ? String(stepsData.steps) : "");
+        setLoaded(true);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Gegevens laden is mislukt.");
+      }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAttempt]);
 
   const profileComplete = Boolean(profile.weight && profile.height && profile.age);
   const weightForCalc = Number(profile.weight) || 70;
@@ -156,7 +174,22 @@ export default function VoedingsTracker() {
     return (
       <div style={styles.app}>
         <div style={styles.shell}>
-          <p style={{ color: "var(--ink-soft)", fontSize: 14 }}>Laden...</p>
+          {loadError ? (
+            <div style={styles.card}>
+              <p style={styles.errorBox}>{loadError}</p>
+              <button
+                style={styles.primaryBtn}
+                onClick={() => {
+                  setLoadError(null);
+                  setLoadAttempt((n) => n + 1);
+                }}
+              >
+                Opnieuw proberen
+              </button>
+            </div>
+          ) : (
+            <p style={{ color: "var(--ink-soft)", fontSize: 14 }}>Laden...</p>
+          )}
         </div>
       </div>
     );
