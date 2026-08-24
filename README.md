@@ -42,7 +42,7 @@ via `DATABASE_PATH`). Zonder `GEMINI_API_KEY` blijft de rest van de app werken, 
 | Variabele        | Verplicht | Omschrijving                                             |
 | ----------------- | --------- | --------------------------------------------------------- |
 | `GEMINI_API_KEY`  | ja        | API-key voor Google Gemini (aistudio.google.com/apikey)   |
-| `GEMINI_MODEL`    | nee       | Model-ID, standaard `gemini-2.0-flash`                    |
+| `GEMINI_MODEL`    | nee       | Model-ID, standaard `gemini-3.6-flash`                    |
 | `DATABASE_PATH`   | nee       | Pad naar het SQLite-bestand, standaard `./data/foodtracker.sqlite` |
 
 ## Structuur

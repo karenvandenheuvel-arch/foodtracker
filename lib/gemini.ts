@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-
 import { FOOD_GROUPS, type FoodGroup } from "./nutrition";
 import type { AnalyzeResult, MealItem } from "./types";
 
-const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
