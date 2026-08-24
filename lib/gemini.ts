@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-
 import { FOOD_GROUPS, type FoodGroup } from "./nutrition";
 import type { AnalyzeResult, MealItem } from "./types";
 
-const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -65,7 +65,7 @@ Richtlijnen:
 - Geef een algehele confidence: "hoog" als je zeker bent van de herkenning, "gemiddeld" bij een redelijke schatting, "laag" als de foto onduidelijk is of je moet gokken.
 - Antwoord uitsluitend met geldige JSON volgens het opgegeven schema, geen extra tekst.`;
 
-function clampToGroup(value: string): FoodGroup {
+export function clampToGroup(value: string): FoodGroup {
   return (FOOD_GROUPS as readonly string[]).includes(value) ? (value as FoodGroup) : "Overig";
 }
 
@@ -73,7 +73,9 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
-function normalizeItem(raw: any): MealItem {
+type RawGeminiItem = Record<string, unknown>;
+
+export function normalizeItem(raw: RawGeminiItem): MealItem {
   return {
     name: String(raw?.name ?? "Onbekend item").slice(0, 120),
     group: clampToGroup(String(raw?.group ?? "Overig")),
@@ -119,15 +121,15 @@ export async function analyzeMealWithGemini(photoDataUrl: string, note: string):
     throw new Error(`Gemini-aanvraag mislukt: ${message}`);
   }
 
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new Error("Gemini gaf geen geldige JSON terug. Probeer het opnieuw.");
   }
 
   const items = Array.isArray(parsed?.items) && parsed.items.length > 0
-    ? parsed.items.map(normalizeItem)
+    ? (parsed.items as RawGeminiItem[]).map(normalizeItem)
     : [
         {
           name: "Onbekend gerecht",

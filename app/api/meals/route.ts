@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getDb, todayIso } from "@/lib/db";
 import type { Meal, MealItem } from "@/lib/types";
 
-function rowToMeal(row: any): Meal {
+type MealRow = Omit<Meal, "items"> & { items_json: string };
+
+function rowToMeal(row: MealRow): Meal {
   return {
     id: row.id,
     date: row.date,
@@ -25,7 +27,7 @@ export async function GET(request: Request) {
   const db = getDb();
   const rows = db
     .prepare("SELECT * FROM meals WHERE date = ? ORDER BY time DESC, id DESC")
-    .all(date);
+    .all(date) as MealRow[];
   return NextResponse.json(rows.map(rowToMeal));
 }
 
@@ -49,6 +51,6 @@ export async function POST(request: Request) {
     )
     .run(date, time, note, photo, kcal, protein, carbs, fat, confidence, JSON.stringify(items));
 
-  const row = db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid);
+  const row = db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid) as MealRow;
   return NextResponse.json(rowToMeal(row), { status: 201 });
 }
