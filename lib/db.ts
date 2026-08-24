@@ -5,7 +5,6 @@ import path from "node:path";
 const DATABASE_PATH = process.env.DATABASE_PATH || "./data/foodtracker.sqlite";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __foodtrackerDb: Database.Database | undefined;
 }
 

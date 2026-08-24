@@ -73,7 +73,9 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
-function normalizeItem(raw: any): MealItem {
+type RawGeminiItem = Record<string, unknown>;
+
+function normalizeItem(raw: RawGeminiItem): MealItem {
   return {
     name: String(raw?.name ?? "Onbekend item").slice(0, 120),
     group: clampToGroup(String(raw?.group ?? "Overig")),
@@ -119,15 +121,15 @@ export async function analyzeMealWithGemini(photoDataUrl: string, note: string):
     throw new Error(`Gemini-aanvraag mislukt: ${message}`);
   }
 
-  let parsed: any;
+  let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new Error("Gemini gaf geen geldige JSON terug. Probeer het opnieuw.");
   }
 
   const items = Array.isArray(parsed?.items) && parsed.items.length > 0
-    ? parsed.items.map(normalizeItem)
+    ? (parsed.items as RawGeminiItem[]).map(normalizeItem)
     : [
         {
           name: "Onbekend gerecht",

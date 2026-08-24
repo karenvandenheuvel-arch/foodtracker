@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Flame, Footprints, Plus, Trash2 } from "lucide-react";
 import { styles } from "./styles";
 import { EXERCISE_TYPES, stepsKcal } from "@/lib/nutrition";
-import type { ExerciseEntry, ProfileRecord } from "@/lib/types";
+import type { ExerciseEntry } from "@/lib/types";
 
 type ProfileInput = {
   weight: string;
