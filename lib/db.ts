@@ -2,14 +2,13 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 
-const DATABASE_PATH = process.env.DATABASE_PATH || "./data/foodtracker.sqlite";
-
 declare global {
   var __foodtrackerDb: Database.Database | undefined;
 }
 
 function createDb() {
-  const resolved = path.resolve(process.cwd(), DATABASE_PATH);
+  const databasePath = process.env.DATABASE_PATH || "./data/foodtracker.sqlite";
+  const resolved = path.resolve(process.cwd(), databasePath);
   fs.mkdirSync(path.dirname(resolved), { recursive: true });
 
   const db = new Database(resolved);

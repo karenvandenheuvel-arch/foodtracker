@@ -65,7 +65,7 @@ Richtlijnen:
 - Geef een algehele confidence: "hoog" als je zeker bent van de herkenning, "gemiddeld" bij een redelijke schatting, "laag" als de foto onduidelijk is of je moet gokken.
 - Antwoord uitsluitend met geldige JSON volgens het opgegeven schema, geen extra tekst.`;
 
-function clampToGroup(value: string): FoodGroup {
+export function clampToGroup(value: string): FoodGroup {
   return (FOOD_GROUPS as readonly string[]).includes(value) ? (value as FoodGroup) : "Overig";
 }
 
@@ -75,7 +75,7 @@ function round1(n: number) {
 
 type RawGeminiItem = Record<string, unknown>;
 
-function normalizeItem(raw: RawGeminiItem): MealItem {
+export function normalizeItem(raw: RawGeminiItem): MealItem {
   return {
     name: String(raw?.name ?? "Onbekend item").slice(0, 120),
     group: clampToGroup(String(raw?.group ?? "Overig")),
