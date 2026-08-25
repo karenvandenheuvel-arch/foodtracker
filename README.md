@@ -101,5 +101,6 @@ De SQLite-database leeft in een named volume (`foodtracker-data`) op `/app/data`
 overleeft een `docker compose down`/`up` en image-rebuilds. Zonder Docker Compose kan het ook
 direct met `docker build` + `docker run -v foodtracker-data:/app/data -p 3000:3000 -e GEMINI_API_KEY=...`.
 
-> Let op: de Docker-build is in deze omgeving niet daadwerkelijk uitgevoerd (geen Docker-daemon
-> beschikbaar) — controleer een eerste keer lokaal of `docker compose up --build` slaagt.
+De build en de container zijn end-to-end getest: `docker build` (alle drie stages), de app die
+opstart, API-calls die echt door `better-sqlite3` heen gaan, en data die een containerherstart
+overleeft via het volume.
