@@ -6,8 +6,10 @@ import { styles } from "@/components/styles";
 import LogView, { type NewMealInput } from "@/components/LogView";
 import DashboardView from "@/components/DashboardView";
 import ProfileView from "@/components/ProfileView";
+import DateNav from "@/components/DateNav";
 import { bmr, stepsKcal } from "@/lib/nutrition";
-import type { ExerciseEntry, Meal } from "@/lib/types";
+import { formatDateLabel, todayIso } from "@/lib/date";
+import type { ExerciseEntry, Meal, MealItem } from "@/lib/types";
 
 type View = "log" | "dashboard" | "profiel";
 
@@ -17,9 +19,12 @@ const EMPTY_PROFILE: ProfileInput = { weight: "", height: "", age: "", gender: "
 
 export default function VoedingsTracker() {
   const [view, setView] = useState<View>("log");
-  const [loaded, setLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [dayLoaded, setDayLoaded] = useState(false);
+  const loaded = profileLoaded && dayLoaded;
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(() => todayIso());
 
   const [profile, setProfile] = useState<ProfileInput>(EMPTY_PROFILE);
   const [steps, setSteps] = useState("");
@@ -29,28 +34,19 @@ export default function VoedingsTracker() {
   const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepsSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ---- initial load ----
+  const isToday = selectedDate === todayIso();
+  const dateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
+
+  // ---- profile (loaded once, independent of the selected day) ----
   useEffect(() => {
     let cancelled = false;
     setLoadError(null);
 
     (async () => {
       try {
-        const [profileRes, mealsRes, exercisesRes, stepsRes] = await Promise.all([
-          fetch("/api/profile"),
-          fetch("/api/meals"),
-          fetch("/api/exercises"),
-          fetch("/api/steps"),
-        ]);
-        for (const res of [profileRes, mealsRes, exercisesRes, stepsRes]) {
-          if (!res.ok) throw new Error(`Server gaf status ${res.status} terug.`);
-        }
-        const [profileData, mealsData, exercisesData, stepsData] = await Promise.all([
-          profileRes.json(),
-          mealsRes.json(),
-          exercisesRes.json(),
-          stepsRes.json(),
-        ]);
+        const res = await fetch("/api/profile");
+        if (!res.ok) throw new Error(`Server gaf status ${res.status} terug.`);
+        const profileData = await res.json();
         if (cancelled) return;
         setProfile({
           weight: profileData.weight != null ? String(profileData.weight) : "",
@@ -58,10 +54,7 @@ export default function VoedingsTracker() {
           age: profileData.age != null ? String(profileData.age) : "",
           gender: profileData.gender === "vrouw" ? "vrouw" : "man",
         });
-        setMealLog(mealsData);
-        setExerciseLog(exercisesData);
-        setSteps(stepsData.steps ? String(stepsData.steps) : "");
-        setLoaded(true);
+        setProfileLoaded(true);
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "Gegevens laden is mislukt.");
@@ -72,6 +65,42 @@ export default function VoedingsTracker() {
       cancelled = true;
     };
   }, [loadAttempt]);
+
+  // ---- meals/exercises/steps for the selected day ----
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const qs = `?date=${selectedDate}`;
+        const [mealsRes, exercisesRes, stepsRes] = await Promise.all([
+          fetch(`/api/meals${qs}`),
+          fetch(`/api/exercises${qs}`),
+          fetch(`/api/steps${qs}`),
+        ]);
+        for (const res of [mealsRes, exercisesRes, stepsRes]) {
+          if (!res.ok) throw new Error(`Server gaf status ${res.status} terug.`);
+        }
+        const [mealsData, exercisesData, stepsData] = await Promise.all([
+          mealsRes.json(),
+          exercisesRes.json(),
+          stepsRes.json(),
+        ]);
+        if (cancelled) return;
+        setMealLog(mealsData);
+        setExerciseLog(exercisesData);
+        setSteps(stepsData.steps ? String(stepsData.steps) : "");
+        setDayLoaded(true);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Gegevens laden is mislukt.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, loadAttempt]);
 
   const profileComplete = Boolean(profile.weight && profile.height && profile.age);
   const weightForCalc = Number(profile.weight) || 70;
@@ -92,38 +121,58 @@ export default function VoedingsTracker() {
     });
   }, []);
 
-  const handleStepsChange = useCallback((value: string) => {
-    setSteps(value);
-    if (stepsSaveTimer.current) clearTimeout(stepsSaveTimer.current);
-    stepsSaveTimer.current = setTimeout(() => {
-      fetch("/api/steps", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ steps: Number(value) || 0 }),
-      });
-    }, 400);
-  }, []);
+  const handleStepsChange = useCallback(
+    (value: string) => {
+      if (!isToday) return;
+      setSteps(value);
+      if (stepsSaveTimer.current) clearTimeout(stepsSaveTimer.current);
+      stepsSaveTimer.current = setTimeout(() => {
+        fetch("/api/steps", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ steps: Number(value) || 0 }),
+        });
+      }, 400);
+    },
+    [isToday]
+  );
 
   // ---- meals ----
-  const addMeal = useCallback(async (meal: NewMealInput) => {
-    const res = await fetch("/api/meals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(meal),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Opslaan van maaltijd mislukt.");
-    setMealLog((prev) => [data as Meal, ...prev]);
-  }, []);
+  const addMeal = useCallback(
+    async (meal: NewMealInput) => {
+      if (!isToday) return;
+      const res = await fetch("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(meal),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Opslaan van maaltijd mislukt.");
+      setMealLog((prev) => [data as Meal, ...prev]);
+    },
+    [isToday]
+  );
 
   const removeMeal = useCallback(async (id: number) => {
     setMealLog((prev) => prev.filter((m) => m.id !== id));
     await fetch(`/api/meals/${id}`, { method: "DELETE" });
   }, []);
 
+  const updateMeal = useCallback(async (id: number, patch: { note: string; items: MealItem[] }) => {
+    const res = await fetch(`/api/meals/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Bijwerken van maaltijd mislukt.");
+    setMealLog((prev) => prev.map((m) => (m.id === id ? (data as Meal) : m)));
+  }, []);
+
   // ---- exercises ----
   const addExercise = useCallback(
     async (name: string, duration: number) => {
+      if (!isToday) return;
       const res = await fetch("/api/exercises", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,7 +182,7 @@ export default function VoedingsTracker() {
       if (!res.ok) throw new Error(data.error || "Opslaan van sportsessie mislukt.");
       setExerciseLog((prev) => [data as ExerciseEntry, ...prev]);
     },
-    [weightForCalc]
+    [weightForCalc, isToday]
   );
 
   const removeExercise = useCallback(async (id: number) => {
@@ -218,14 +267,26 @@ export default function VoedingsTracker() {
           ))}
         </nav>
 
+        <DateNav date={selectedDate} onChange={setSelectedDate} />
+
         {view === "log" && (
-          <LogView mealLog={mealLog} intakeKcal={intakeKcal} onAddMeal={addMeal} onRemoveMeal={removeMeal} />
+          <LogView
+            mealLog={mealLog}
+            intakeKcal={intakeKcal}
+            isToday={isToday}
+            dateLabel={dateLabel}
+            onAddMeal={addMeal}
+            onRemoveMeal={removeMeal}
+            onUpdateMeal={updateMeal}
+          />
         )}
 
         {view === "dashboard" && (
           <DashboardView
             profileComplete={profileComplete}
             weightForCalc={weightForCalc}
+            isToday={isToday}
+            dateLabel={dateLabel}
             intakeKcal={intakeKcal}
             totalBurned={totalBurned}
             balance={balance}
@@ -248,6 +309,8 @@ export default function VoedingsTracker() {
             profileComplete={profileComplete}
             restingBurn={restingBurn}
             weightForCalc={weightForCalc}
+            isToday={isToday}
+            dateLabel={dateLabel}
             steps={steps}
             onStepsChange={handleStepsChange}
             exerciseLog={exerciseLog}

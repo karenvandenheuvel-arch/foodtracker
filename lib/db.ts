@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { todayIso } from "./date";
+
+export { todayIso };
 
 declare global {
   var __foodtrackerDb: Database.Database | undefined;
@@ -67,8 +70,4 @@ export function getDb() {
     global.__foodtrackerDb = createDb();
   }
   return global.__foodtrackerDb;
-}
-
-export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
 }

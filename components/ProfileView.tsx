@@ -19,6 +19,8 @@ type Props = {
   profileComplete: boolean;
   restingBurn: number | null;
   weightForCalc: number;
+  isToday: boolean;
+  dateLabel: string;
   steps: string;
   onStepsChange: (steps: string) => void;
   exerciseLog: ExerciseEntry[];
@@ -32,6 +34,8 @@ export default function ProfileView({
   profileComplete,
   restingBurn,
   weightForCalc,
+  isToday,
+  dateLabel,
   steps,
   onStepsChange,
   exerciseLog,
@@ -113,7 +117,7 @@ export default function ProfileView({
 
       <div style={styles.thinRule} />
 
-      <div style={styles.labelTitle}>STAPPEN VANDAAG</div>
+      <div style={styles.labelTitle}>STAPPEN {isToday ? "VANDAAG" : dateLabel.toUpperCase()}</div>
       <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "center" }}>
         <Footprints size={18} color="var(--ink-soft)" />
         <input
@@ -122,42 +126,53 @@ export default function ProfileView({
           onChange={(e) => onStepsChange(e.target.value)}
           style={{ ...styles.input, flex: 1 }}
           placeholder="bv. 8500"
+          disabled={!isToday}
         />
         <span style={styles.mono}>{steps ? stepsKcal(Number(steps), weightForCalc) : 0} kcal</span>
       </div>
+      {!isToday && <p style={styles.hint}>Stappen kun je alleen voor vandaag bijwerken.</p>}
 
       <div style={styles.thinRule} />
 
-      <div style={styles.labelTitle}>SPORTSESSIE TOEVOEGEN</div>
-      <div style={styles.formGrid}>
-        <div>
-          <label style={styles.label}>Type</label>
-          <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} style={styles.input}>
-            {EXERCISE_TYPES.map((t) => (
-              <option key={t.name} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={styles.label}>Duur (min)</label>
-          <input
-            type="number"
-            value={exerciseDuration}
-            onChange={(e) => setExerciseDuration(e.target.value)}
-            style={styles.input}
-            placeholder="30"
-          />
-        </div>
-      </div>
-      <button style={{ ...styles.primaryBtn, marginTop: 10, opacity: adding ? 0.6 : 1 }} onClick={addExercise} disabled={adding}>
-        <Plus size={15} /> Sessie loggen
-      </button>
+      {isToday ? (
+        <>
+          <div style={styles.labelTitle}>SPORTSESSIE TOEVOEGEN</div>
+          <div style={styles.formGrid}>
+            <div>
+              <label style={styles.label}>Type</label>
+              <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} style={styles.input}>
+                {EXERCISE_TYPES.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={styles.label}>Duur (min)</label>
+              <input
+                type="number"
+                value={exerciseDuration}
+                onChange={(e) => setExerciseDuration(e.target.value)}
+                style={styles.input}
+                placeholder="30"
+              />
+            </div>
+          </div>
+          <button style={{ ...styles.primaryBtn, marginTop: 10, opacity: adding ? 0.6 : 1 }} onClick={addExercise} disabled={adding}>
+            <Plus size={15} /> Sessie loggen
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={styles.labelTitle}>SPORT</div>
+          <p style={styles.hint}>Nieuwe sportsessies loggen kan alleen voor vandaag.</p>
+        </>
+      )}
 
       {exerciseLog.length > 0 && (
         <div style={styles.historySection}>
-          <div style={styles.historyHeader}>Vandaag gesport</div>
+          <div style={styles.historyHeader}>{isToday ? "Vandaag gesport" : `Gesport — ${dateLabel}`}</div>
           {exerciseLog.map((e) => (
             <div key={e.id} style={styles.historyRow}>
               <div style={styles.historyMeta}>
