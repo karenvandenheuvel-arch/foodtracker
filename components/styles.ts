@@ -57,6 +57,30 @@ export const styles: StyleMap = {
   },
   tabActive: { background: "var(--ink)", color: "var(--bg)" },
 
+  dateNav: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 16 },
+  dateNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    border: "1.5px solid var(--ink)",
+    background: "var(--panel)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  dateNavLabel: {
+    position: "relative",
+    flex: 1,
+    textAlign: "center",
+    fontSize: 13,
+    fontWeight: 700,
+    textTransform: "capitalize",
+    cursor: "pointer",
+  },
+  dateNavInput: { position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" },
+
   dayStrip: {
     display: "flex",
     alignItems: "baseline",
@@ -244,4 +268,11 @@ export const styles: StyleMap = {
   groupLabelRow: { display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 },
   groupDot: { display: "flex", alignItems: "center", gap: 6 },
   groupBarTrack: { height: 8, borderRadius: 4, background: "#F2F1EB", overflow: "hidden" },
+
+  editMealCard: { background: "#FCFBF8", border: "1.5px solid var(--rule-thin)", borderRadius: 4, padding: 12, margin: "8px 0" },
+  editItemBlock: { border: "1px solid var(--rule-thin)", borderRadius: 4, padding: 8, marginBottom: 8, background: "var(--panel)" },
+  editItemHeader: { display: "flex", gap: 6, alignItems: "center", marginBottom: 6 },
+  editItemGrid: { display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: 6 },
+  editItemNum: { padding: "6px 4px", fontSize: 12, textAlign: "center" },
+  editMealTotal: { fontSize: 12.5, color: "var(--ink-soft)", margin: "4px 0 10px" },
 };

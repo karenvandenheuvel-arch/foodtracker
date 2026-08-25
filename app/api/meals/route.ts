@@ -1,24 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, todayIso } from "@/lib/db";
-import type { Meal, MealItem } from "@/lib/types";
-
-type MealRow = Omit<Meal, "items"> & { items_json: string };
-
-function rowToMeal(row: MealRow): Meal {
-  return {
-    id: row.id,
-    date: row.date,
-    time: row.time,
-    note: row.note,
-    photo: row.photo,
-    kcal: row.kcal,
-    protein: row.protein,
-    carbs: row.carbs,
-    fat: row.fat,
-    confidence: row.confidence,
-    items: JSON.parse(row.items_json) as MealItem[],
-  };
-}
+import { rowToMeal, type MealRow } from "@/lib/meals";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

@@ -12,6 +12,10 @@ geanalyseerd door een echte Gemini-call (met gestructureerde JSON-output), en al
   macroverdeling en kcal per voedingsgroep.
 - **Profiel** — gewicht/lengte/leeftijd/geslacht (Mifflin-St Jeor rustverbruik), stappen van
   vandaag en sportsessies (MET-tabel).
+- **Geschiedenis** — met de datumnavigatie (‹ Vandaag ›, of een datum kiezen) blader je door
+  eerdere dagen; loggen van nieuwe maaltijden/sport/stappen kan alleen voor vandaag.
+- **Maaltijden bewerken** — een gelogde maaltijd corrigeren (notitie, items, kcal/macro's per
+  item) via het potloodicoon, zonder de maaltijd te moeten verwijderen en opnieuw te loggen.
 
 ## Stack
 

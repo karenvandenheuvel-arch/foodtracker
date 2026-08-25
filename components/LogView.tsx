@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Loader2, Plus, Minus, Check, X, Info, Trash2 } from "lucide-react";
+import { Camera, Loader2, Plus, Minus, Check, X, Info, Trash2, Pencil } from "lucide-react";
 import { styles } from "./styles";
 import { CONFIDENCE_STYLE } from "@/lib/nutrition";
+import EditMealForm from "./EditMealForm";
 import type { AnalyzeResult, Meal, MealItem } from "@/lib/types";
 
 export type NewMealInput = {
@@ -20,8 +21,11 @@ export type NewMealInput = {
 type Props = {
   mealLog: Meal[];
   intakeKcal: number;
+  isToday: boolean;
+  dateLabel: string;
   onAddMeal: (meal: NewMealInput) => Promise<void>;
   onRemoveMeal: (id: number) => Promise<void>;
+  onUpdateMeal: (id: number, patch: { note: string; items: MealItem[] }) => Promise<void>;
 };
 
 type Totals = { kcal: number; protein: number; carbs: number; fat: number };
@@ -35,7 +39,15 @@ function scale(totals: Totals, multiplier: number): Totals {
   };
 }
 
-export default function LogView({ mealLog, intakeKcal, onAddMeal, onRemoveMeal }: Props) {
+export default function LogView({
+  mealLog,
+  intakeKcal,
+  isToday,
+  dateLabel,
+  onAddMeal,
+  onRemoveMeal,
+  onUpdateMeal,
+}: Props) {
   const [photo, setPhoto] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "analyzing" | "result">("idle");
@@ -43,6 +55,7 @@ export default function LogView({ mealLog, intakeKcal, onAddMeal, onRemoveMeal }
   const [portionMultiplier, setPortionMultiplier] = useState(1);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +135,7 @@ export default function LogView({ mealLog, intakeKcal, onAddMeal, onRemoveMeal }
     <>
       {mealLog.length > 0 && (
         <div style={styles.dayStrip}>
-          <span style={styles.dayStripLabel}>Ingenomen vandaag</span>
+          <span style={styles.dayStripLabel}>{isToday ? "Ingenomen vandaag" : `Ingenomen — ${dateLabel}`}</span>
           <span style={styles.dayStripValue}>{intakeKcal} kcal</span>
           <span style={styles.dayStripCount}>
             {mealLog.length} {mealLog.length === 1 ? "maaltijd" : "maaltijden"}
@@ -130,7 +143,16 @@ export default function LogView({ mealLog, intakeKcal, onAddMeal, onRemoveMeal }
         </div>
       )}
 
-      {status !== "result" && (
+      {!isToday && (
+        <div style={styles.card}>
+          <p style={styles.hint}>
+            <Info size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Je bekijkt {dateLabel.toLowerCase()}.
+            Nieuwe maaltijden loggen kan alleen voor vandaag.
+          </p>
+        </div>
+      )}
+
+      {isToday && status !== "result" && (
         <div style={styles.card}>
           <div
             style={{ ...styles.photoDrop, backgroundImage: photo ? `url(${photo})` : "none" }}
@@ -266,21 +288,36 @@ export default function LogView({ mealLog, intakeKcal, onAddMeal, onRemoveMeal }
       {mealLog.length > 0 && status !== "result" && (
         <div style={styles.historySection}>
           <div style={styles.historyHeader}>Gelogde maaltijden</div>
-          {mealLog.map((m) => (
-            <div key={m.id} style={styles.historyRow}>
-              <img src={m.photo} alt="" style={styles.historyThumb} />
-              <div style={styles.historyMeta}>
-                <div style={styles.historyNote}>{m.note || "Geen notitie"}</div>
-                <div style={styles.historyTime}>
-                  {new Date(m.time).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })}
+          {mealLog.map((m) =>
+            editingId === m.id ? (
+              <EditMealForm
+                key={m.id}
+                meal={m}
+                onCancel={() => setEditingId(null)}
+                onSave={async (patch) => {
+                  await onUpdateMeal(m.id, patch);
+                  setEditingId(null);
+                }}
+              />
+            ) : (
+              <div key={m.id} style={styles.historyRow}>
+                <img src={m.photo} alt="" style={styles.historyThumb} />
+                <div style={styles.historyMeta}>
+                  <div style={styles.historyNote}>{m.note || "Geen notitie"}</div>
+                  <div style={styles.historyTime}>
+                    {new Date(m.time).toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
                 </div>
+                <div style={styles.historyKcal}>{m.kcal} kcal</div>
+                <button style={styles.iconBtn} onClick={() => setEditingId(m.id)} aria-label="Maaltijd bewerken">
+                  <Pencil size={13} />
+                </button>
+                <button style={styles.iconBtn} onClick={() => onRemoveMeal(m.id)} aria-label="Maaltijd verwijderen">
+                  <Trash2 size={13} />
+                </button>
               </div>
-              <div style={styles.historyKcal}>{m.kcal} kcal</div>
-              <button style={styles.iconBtn} onClick={() => onRemoveMeal(m.id)}>
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </>

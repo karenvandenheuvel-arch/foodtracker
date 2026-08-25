@@ -7,6 +7,8 @@ import { GROUP_COLORS, type FoodGroup } from "@/lib/nutrition";
 type Props = {
   profileComplete: boolean;
   weightForCalc: number;
+  isToday: boolean;
+  dateLabel: string;
   intakeKcal: number;
   totalBurned: number;
   balance: number;
@@ -24,6 +26,8 @@ type Props = {
 export default function DashboardView({
   profileComplete,
   weightForCalc,
+  isToday,
+  dateLabel,
   intakeKcal,
   totalBurned,
   balance,
@@ -47,8 +51,10 @@ export default function DashboardView({
         </div>
       )}
 
-      <div style={styles.labelTitle}>ENERGIEBALANS VANDAAG</div>
-      <div style={styles.labelSub}>inname versus verbruik</div>
+      <div style={styles.labelTitle}>ENERGIEBALANS</div>
+      <div style={styles.labelSub}>
+        inname versus verbruik {isToday ? "vandaag" : `— ${dateLabel.toLowerCase()}`}
+      </div>
       <div style={styles.thickRule} />
 
       <div style={styles.balanceGrid}>
