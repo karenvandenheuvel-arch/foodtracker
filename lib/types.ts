@@ -51,4 +51,5 @@ export type DayBalance = {
   intakeKcal: number;
   burnedKcal: number;
   balance: number;
+  hasActivity: boolean;
 };

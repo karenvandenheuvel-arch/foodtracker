@@ -39,7 +39,8 @@ export function getBalanceHistory(days: number): DayBalance[] {
     const exerciseBurned = exerciseByDate[date] || 0;
     const stepsBurned = stepsByDate[date] ? stepsKcal(stepsByDate[date], weightForCalc) : 0;
     const burnedKcal = dailyResting + exerciseBurned + stepsBurned;
-    result.push({ date, intakeKcal, burnedKcal, balance: intakeKcal - burnedKcal });
+    const hasActivity = intakeKcal > 0 || exerciseBurned > 0 || stepsBurned > 0;
+    result.push({ date, intakeKcal, burnedKcal, balance: intakeKcal - burnedKcal, hasActivity });
   }
   return result;
 }

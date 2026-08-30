@@ -139,20 +139,23 @@ export default function VoedingsTracker() {
   const weightForCalc = Number(profile.weight) || 70;
 
   // ---- profile persistence (debounced) ----
-  const handleProfileChange = useCallback((patch: Partial<ProfileInput>) => {
-    setProfile((prev) => {
-      const next = { ...prev, ...patch };
-      if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
-      profileSaveTimer.current = setTimeout(() => {
-        fetch("/api/profile", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(next),
-        });
-      }, 400);
-      return next;
-    });
-  }, []);
+  const handleProfileChange = useCallback(
+    (patch: Partial<ProfileInput>) => {
+      setProfile((prev) => {
+        const next = { ...prev, ...patch };
+        if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
+        profileSaveTimer.current = setTimeout(() => {
+          fetch("/api/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(next),
+          }).then(() => refreshHistory());
+        }, 400);
+        return next;
+      });
+    },
+    [refreshHistory]
+  );
 
   const handleStepsChange = useCallback(
     (value: string) => {

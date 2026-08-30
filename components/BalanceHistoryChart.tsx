@@ -30,7 +30,7 @@ export default function BalanceHistoryChart({ data }: Props) {
 
   if (data.length === 0) return null;
 
-  const hasAnyData = data.some((d) => d.intakeKcal > 0 || d.burnedKcal > 0);
+  const hasAnyData = data.some((d) => d.hasActivity);
   const maxAbs = Math.max(200, ...data.map((d) => Math.abs(d.balance)));
   const width = data.length * WIDTH_PER_DAY;
 
