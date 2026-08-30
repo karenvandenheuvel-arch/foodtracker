@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Loader2, Plus, Minus, Check, X, Info, Trash2, Pencil } from "lucide-react";
+import { Camera, Loader2, Plus, Minus, Check, X, Info, Trash2, Pencil, PenLine, UtensilsCrossed, Repeat } from "lucide-react";
 import { styles } from "./styles";
 import { CONFIDENCE_STYLE } from "@/lib/nutrition";
 import EditMealForm from "./EditMealForm";
@@ -26,9 +26,21 @@ type Props = {
   onAddMeal: (meal: NewMealInput) => Promise<void>;
   onRemoveMeal: (id: number) => Promise<void>;
   onUpdateMeal: (id: number, patch: { note: string; items: MealItem[] }) => Promise<void>;
+  libraryMeals: Meal[];
+  onQuickAddMeal: (meal: Meal) => Promise<void>;
 };
 
 type Totals = { kcal: number; protein: number; carbs: number; fat: number };
+
+// A quick-added library item gets a new id once the library list is refetched
+// (the just-created row supersedes the older one with the same note in the
+// dedup), so "in-flight" / "just logged" state is tracked by this signature
+// instead of by id, matching the server's own dedup key in the library route.
+function mealKey(meal: Meal): string {
+  const note = meal.note.trim().toLowerCase();
+  if (note) return note;
+  return meal.items.map((it) => it.name.trim().toLowerCase()).join("|");
+}
 
 function scale(totals: Totals, multiplier: number): Totals {
   return {
@@ -47,7 +59,10 @@ export default function LogView({
   onAddMeal,
   onRemoveMeal,
   onUpdateMeal,
+  libraryMeals,
+  onQuickAddMeal,
 }: Props) {
+  const [mode, setMode] = useState<"photo" | "text">("photo");
   const [photo, setPhoto] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "analyzing" | "result">("idle");
@@ -56,6 +71,8 @@ export default function LogView({
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [quickAddingKey, setQuickAddingKey] = useState<string | null>(null);
+  const [justAddedKey, setJustAddedKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +84,8 @@ export default function LogView({
   };
 
   const handleAnalyze = async () => {
-    if (!photo) return;
+    if (mode === "photo" && !photo) return;
+    if (mode === "text" && !note.trim()) return;
     setStatus("analyzing");
     setAnalyzeError(null);
     setPortionMultiplier(1);
@@ -75,7 +93,7 @@ export default function LogView({
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photo, note }),
+        body: JSON.stringify(mode === "photo" ? { photo, note } : { note }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Analyse mislukt.");
@@ -112,7 +130,7 @@ export default function LogView({
   };
 
   const confirmLog = async () => {
-    if (!result || !scaled || !photo) return;
+    if (!result || !scaled) return;
     setSaving(true);
     const scaledItems = result.items.map((it) => ({
       ...it,
@@ -122,12 +140,26 @@ export default function LogView({
       fat: Math.round(it.fat * portionMultiplier * 10) / 10,
     }));
     try {
-      await onAddMeal({ note, photo, ...scaled, items: scaledItems, confidence: result.confidence });
+      await onAddMeal({ note, photo: photo ?? "", ...scaled, items: scaledItems, confidence: result.confidence });
       resetForm();
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : "Opslaan mislukt.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const quickAdd = async (meal: Meal) => {
+    const key = mealKey(meal);
+    setQuickAddingKey(key);
+    try {
+      await onQuickAddMeal(meal);
+      setJustAddedKey(key);
+      setTimeout(() => setJustAddedKey((k) => (k === key ? null : k)), 1800);
+    } catch {
+      // errors surface via the normal history/dashboard refresh; nothing extra to show here
+    } finally {
+      setQuickAddingKey(null);
     }
   };
 
@@ -152,44 +184,110 @@ export default function LogView({
         </div>
       )}
 
+      {isToday && status !== "result" && libraryMeals.length > 0 && (
+        <div style={{ ...styles.card, marginBottom: 16 }}>
+          <div style={styles.labelTitle}>EERDER GELOGD</div>
+          <div style={styles.labelSub}>tik om vandaag opnieuw te loggen</div>
+          <div style={styles.libraryStrip}>
+            {libraryMeals.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                style={{ ...styles.libraryChip, opacity: quickAddingKey === mealKey(m) ? 0.5 : 1 }}
+                onClick={() => quickAdd(m)}
+                disabled={quickAddingKey !== null}
+              >
+                {m.photo ? (
+                  <img src={m.photo} alt="" style={styles.libraryChipThumb} />
+                ) : (
+                  <div style={{ ...styles.noPhotoThumb, borderRadius: "50%", width: 60, height: 60 }}>
+                    {quickAddingKey === mealKey(m) ? (
+                      <Loader2 size={18} style={{ animation: "spin 0.9s linear infinite" }} />
+                    ) : justAddedKey === mealKey(m) ? (
+                      <Check size={20} color="var(--ok)" />
+                    ) : (
+                      <UtensilsCrossed size={20} />
+                    )}
+                  </div>
+                )}
+                <span style={styles.libraryChipLabel}>{m.note || m.items[0]?.name || "Item"}</span>
+                <span style={styles.libraryChipKcal}>{justAddedKey === mealKey(m) ? "Gelogd!" : `${m.kcal} kcal`}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isToday && status !== "result" && (
         <div style={styles.card}>
-          <div
-            style={{ ...styles.photoDrop, backgroundImage: photo ? `url(${photo})` : "none" }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {!photo && (
-              <div style={styles.photoDropInner}>
-                <Camera size={28} strokeWidth={1.5} color="var(--ink-soft)" />
-                <span style={styles.photoDropText}>Tik om een foto te nemen of te kiezen</span>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoChange}
-              style={{ display: "none" }}
-            />
+          <div style={styles.modeToggle}>
+            <button
+              type="button"
+              style={{ ...styles.modeToggleBtn, ...(mode === "photo" ? styles.modeToggleBtnActive : {}) }}
+              onClick={() => setMode("photo")}
+            >
+              <Camera size={14} /> Foto
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.modeToggleBtn, ...(mode === "text" ? styles.modeToggleBtnActive : {}) }}
+              onClick={() => setMode("text")}
+            >
+              <PenLine size={14} /> Beschrijving
+            </button>
           </div>
 
-          <label style={styles.label}>Wat zie je op de foto? (optioneel, maar helpt enorm)</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="bv. het witte is skyr van de Aldi, met havermout en een banaan"
-            style={styles.textarea}
-            rows={2}
-          />
+          {mode === "photo" ? (
+            <>
+              <div
+                style={{ ...styles.photoDrop, backgroundImage: photo ? `url(${photo})` : "none" }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {!photo && (
+                  <div style={styles.photoDropInner}>
+                    <Camera size={28} strokeWidth={1.5} color="var(--ink-soft)" />
+                    <span style={styles.photoDropText}>Tik om een foto te nemen of te kiezen</span>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  style={{ display: "none" }}
+                />
+              </div>
+
+              <label style={styles.label}>Wat zie je op de foto? (optioneel, maar helpt enorm)</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="bv. het witte is skyr van de Aldi, met havermout en een banaan"
+                style={styles.textarea}
+                rows={2}
+              />
+            </>
+          ) : (
+            <>
+              <label style={styles.label}>Wat heb je gegeten?</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="bv. 2 kiwi's"
+                style={styles.textarea}
+                rows={3}
+              />
+            </>
+          )}
 
           <button
             style={{
               ...styles.primaryBtn,
-              opacity: photo && status !== "analyzing" ? 1 : 0.5,
-              cursor: photo && status !== "analyzing" ? "pointer" : "not-allowed",
+              opacity: (mode === "photo" ? photo : note.trim()) && status !== "analyzing" ? 1 : 0.5,
+              cursor: (mode === "photo" ? photo : note.trim()) && status !== "analyzing" ? "pointer" : "not-allowed",
             }}
-            disabled={!photo || status === "analyzing"}
+            disabled={(mode === "photo" ? !photo : !note.trim()) || status === "analyzing"}
             onClick={handleAnalyze}
           >
             {status === "analyzing" ? (
@@ -202,8 +300,10 @@ export default function LogView({
           </button>
 
           <p style={styles.hint}>
-            <Info size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Analyse via Gemini (foto + notitie).
-            Voeg een duidelijke beschrijving toe voor een nauwkeurigere schatting.
+            <Info size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+            {mode === "photo"
+              ? "Analyse via Gemini (foto + notitie). Voeg een duidelijke beschrijving toe voor een nauwkeurigere schatting."
+              : "Analyse via Gemini op basis van je beschrijving. Vermeld hoeveelheden voor een nauwkeurigere schatting."}
           </p>
 
           {analyzeError && <p style={styles.errorBox}>{analyzeError}</p>}
@@ -213,7 +313,13 @@ export default function LogView({
       {status === "result" && result && scaled && (
         <div style={styles.card}>
           <div style={styles.thumbRow}>
-            <img src={photo!} alt="maaltijd" style={styles.thumb} />
+            {photo ? (
+              <img src={photo} alt="maaltijd" style={styles.thumb} />
+            ) : (
+              <div style={styles.noPhotoThumb}>
+                <UtensilsCrossed size={22} />
+              </div>
+            )}
             <div>
               <div style={{ ...styles.confidenceDot, background: CONFIDENCE_STYLE[result.confidence].color }} />
               <span style={styles.confidenceLabel}>{CONFIDENCE_STYLE[result.confidence].label}</span>
@@ -301,7 +407,13 @@ export default function LogView({
               />
             ) : (
               <div key={m.id} style={styles.historyRow}>
-                <img src={m.photo} alt="" style={styles.historyThumb} />
+                {m.photo ? (
+                  <img src={m.photo} alt="" style={styles.historyThumb} />
+                ) : (
+                  <div style={styles.noPhotoThumbSmall}>
+                    <UtensilsCrossed size={16} />
+                  </div>
+                )}
                 <div style={styles.historyMeta}>
                   <div style={styles.historyNote}>{m.note || "Geen notitie"}</div>
                   <div style={styles.historyTime}>
@@ -309,6 +421,21 @@ export default function LogView({
                   </div>
                 </div>
                 <div style={styles.historyKcal}>{m.kcal} kcal</div>
+                <button
+                  style={styles.iconBtn}
+                  onClick={() => quickAdd(m)}
+                  disabled={quickAddingKey !== null}
+                  aria-label="Opnieuw loggen voor vandaag"
+                  title="Opnieuw loggen voor vandaag"
+                >
+                  {quickAddingKey === mealKey(m) ? (
+                    <Loader2 size={13} style={{ animation: "spin 0.9s linear infinite" }} />
+                  ) : justAddedKey === mealKey(m) ? (
+                    <Check size={13} color="var(--ok)" />
+                  ) : (
+                    <Repeat size={13} />
+                  )}
+                </button>
                 <button style={styles.iconBtn} onClick={() => setEditingId(m.id)} aria-label="Maaltijd bewerken">
                   <Pencil size={13} />
                 </button>

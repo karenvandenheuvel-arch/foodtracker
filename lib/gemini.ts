@@ -65,6 +65,18 @@ Richtlijnen:
 - Geef een algehele confidence: "hoog" als je zeker bent van de herkenning, "gemiddeld" bij een redelijke schatting, "laag" als de foto onduidelijk is of je moet gokken.
 - Antwoord uitsluitend met geldige JSON volgens het opgegeven schema, geen extra tekst.`;
 
+const SYSTEM_PROMPT_TEXT = `Je bent een Nederlandstalige voedingsanalist die korte tekstbeschrijvingen van maaltijden beoordeelt voor een voedingstracker-app.
+
+Taak: de gebruiker beschrijft in tekst wat hij/zij gegeten heeft (bv. "2 kiwi's" of "bord pasta met tomatensaus en kaas"), zonder foto. Herken de afzonderlijke voedingsitems en schat per item de voedingswaarden in voor de beschreven hoeveelheid.
+
+Richtlijnen:
+- Splits de maaltijd op in losse items in plaats van één grote schatting, tenzij het echt één samengesteld gerecht is.
+- Ken elk item een van deze groepen toe: Zuivel, Eiwitbronnen, Granen, Groenten, Fruit, Overig.
+- Neem aantallen en hoeveelheden uit de beschrijving letterlijk over (bv. "2 kiwi's" = twee stuks) en gebruik anders een realistische standaardportie.
+- Als de beschrijving een specifiek merk of product noemt, gebruik die informatie om nauwkeuriger te schatten en markeer die items als source "database". Overige items zijn source "schatting".
+- Geef een algehele confidence: "hoog" als de beschrijving duidelijk en specifiek is, "gemiddeld" bij een redelijke schatting, "laag" als de beschrijving vaag is of je moet gokken.
+- Antwoord uitsluitend met geldige JSON volgens het opgegeven schema, geen extra tekst.`;
+
 export function clampToGroup(value: string): FoodGroup {
   return (FOOD_GROUPS as readonly string[]).includes(value) ? (value as FoodGroup) : "Overig";
 }
@@ -84,6 +96,40 @@ export function normalizeItem(raw: RawGeminiItem): MealItem {
     carbs: Math.max(0, round1(Number(raw?.carbs) || 0)),
     fat: Math.max(0, round1(Number(raw?.fat) || 0)),
     source: raw?.source === "database" ? "database" : "schatting",
+  };
+}
+
+function parseGeminiResponse(text: string): AnalyzeResult {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error("Gemini gaf geen geldige JSON terug. Probeer het opnieuw.");
+  }
+
+  const items = Array.isArray(parsed?.items) && parsed.items.length > 0
+    ? (parsed.items as RawGeminiItem[]).map(normalizeItem)
+    : [
+        {
+          name: "Onbekend item",
+          group: "Overig" as FoodGroup,
+          kcal: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          source: "schatting" as const,
+        },
+      ];
+
+  const confidence: AnalyzeResult["confidence"] =
+    parsed?.confidence === "hoog" || parsed?.confidence === "gemiddeld" || parsed?.confidence === "laag"
+      ? parsed.confidence
+      : "laag";
+
+  return {
+    items,
+    confidence,
+    note: typeof parsed?.note === "string" && parsed.note ? parsed.note : "Analyse door Gemini.",
   };
 }
 
@@ -121,35 +167,34 @@ export async function analyzeMealWithGemini(photoDataUrl: string, note: string):
     throw new Error(`Gemini-aanvraag mislukt: ${message}`);
   }
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    throw new Error("Gemini gaf geen geldige JSON terug. Probeer het opnieuw.");
+  return parseGeminiResponse(text);
+}
+
+export async function analyzeMealFromDescription(description: string): Promise<AnalyzeResult> {
+  const trimmed = description.trim();
+  if (!trimmed) {
+    throw new Error("Geef een beschrijving op van wat je gegeten hebt.");
   }
 
-  const items = Array.isArray(parsed?.items) && parsed.items.length > 0
-    ? (parsed.items as RawGeminiItem[]).map(normalizeItem)
-    : [
-        {
-          name: "Onbekend gerecht",
-          group: "Overig" as FoodGroup,
-          kcal: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0,
-          source: "schatting" as const,
-        },
-      ];
+  const genAI = getClient();
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    systemInstruction: SYSTEM_PROMPT_TEXT,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+      temperature: 0.3,
+    },
+  });
 
-  const confidence: AnalyzeResult["confidence"] =
-    parsed?.confidence === "hoog" || parsed?.confidence === "gemiddeld" || parsed?.confidence === "laag"
-      ? parsed.confidence
-      : "laag";
+  let text: string;
+  try {
+    const result = await model.generateContent([{ text: `Beschrijving van de gebruiker: "${trimmed}"` }]);
+    text = result.response.text();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Gemini-aanvraag mislukt: ${message}`);
+  }
 
-  return {
-    items,
-    confidence,
-    note: typeof parsed?.note === "string" && parsed.note ? parsed.note : "Analyse door Gemini.",
-  };
+  return parseGeminiResponse(text);
 }

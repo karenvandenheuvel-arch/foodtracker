@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Voedingslabel",
+  title: "Foodtracker",
   description: "Foto, activiteit en balans op één plek.",
 };
 
