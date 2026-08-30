@@ -17,13 +17,14 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { note = "", photo, kcal, protein, carbs, fat, confidence, items } = body;
 
-  if (!photo || !Array.isArray(items)) {
+  if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Ongeldige maaltijdgegevens." }, { status: 400 });
   }
 
   const now = new Date();
   const date = todayIso();
   const time = now.toISOString();
+  const photoValue = typeof photo === "string" ? photo : "";
 
   const db = getDb();
   const result = db
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       `INSERT INTO meals (date, time, note, photo, kcal, protein, carbs, fat, confidence, items_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(date, time, note, photo, kcal, protein, carbs, fat, confidence, JSON.stringify(items));
+    .run(date, time, note, photoValue, kcal, protein, carbs, fat, confidence, JSON.stringify(items));
 
   const row = db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid) as MealRow;
   return NextResponse.json(rowToMeal(row), { status: 201 });

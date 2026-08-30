@@ -49,4 +49,16 @@ describe("POST /api/meals", () => {
     expect(list[0].id).toBe(created.id);
     expect(list[0].items).toEqual(validMealBody.items);
   });
+
+  it("accepts a text-logged meal without a photo", async () => {
+    const { photo, ...withoutPhoto } = validMealBody;
+    void photo;
+    const res = await POST(
+      new Request("http://localhost/api/meals", { method: "POST", body: JSON.stringify(withoutPhoto) })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.photo).toBe("");
+    expect(created.items).toEqual(withoutPhoto.items);
+  });
 });

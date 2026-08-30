@@ -30,9 +30,9 @@ export default function VoedingsTracker() {
   const [steps, setSteps] = useState("");
   const [mealLog, setMealLog] = useState<Meal[]>([]);
   const [exerciseLog, setExerciseLog] = useState<ExerciseEntry[]>([]);
+  const [libraryMeals, setLibraryMeals] = useState<Meal[]>([]);
 
   const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stepsSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isToday = selectedDate === todayIso();
   const dateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
@@ -102,6 +102,22 @@ export default function VoedingsTracker() {
     };
   }, [selectedDate, loadAttempt]);
 
+  // ---- library of previously logged meals (for quick re-logging) ----
+  const refreshLibrary = useCallback(async () => {
+    try {
+      const res = await fetch("/api/meals/library");
+      if (!res.ok) return;
+      const data = await res.json();
+      setLibraryMeals(data);
+    } catch {
+      // library is a convenience feature; ignore failures silently
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshLibrary();
+  }, [refreshLibrary]);
+
   const profileComplete = Boolean(profile.weight && profile.height && profile.age);
   const weightForCalc = Number(profile.weight) || 70;
 
@@ -125,22 +141,27 @@ export default function VoedingsTracker() {
     (value: string) => {
       if (!isToday) return;
       setSteps(value);
-      if (stepsSaveTimer.current) clearTimeout(stepsSaveTimer.current);
-      stepsSaveTimer.current = setTimeout(() => {
-        fetch("/api/steps", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ steps: Number(value) || 0 }),
-        });
-      }, 400);
     },
     [isToday]
   );
 
+  const logSteps = useCallback(async () => {
+    if (!isToday) return;
+    const res = await fetch("/api/steps", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ steps: Number(steps) || 0 }),
+    });
+    if (!res.ok) throw new Error("Opslaan van stappen mislukt.");
+  }, [isToday, steps]);
+
   // ---- meals ----
+  // Note: the backend always logs against today's date, regardless of which
+  // date is currently being viewed (quick re-logging an older meal targets
+  // "today", not the viewed date) — so only merge the result into the visible
+  // list when today's log is what's on screen.
   const addMeal = useCallback(
     async (meal: NewMealInput) => {
-      if (!isToday) return;
       const res = await fetch("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,9 +169,28 @@ export default function VoedingsTracker() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Opslaan van maaltijd mislukt.");
-      setMealLog((prev) => [data as Meal, ...prev]);
+      if (isToday) {
+        setMealLog((prev) => [data as Meal, ...prev]);
+      }
+      refreshLibrary();
     },
-    [isToday]
+    [isToday, refreshLibrary]
+  );
+
+  const quickAddMeal = useCallback(
+    async (meal: Meal) => {
+      await addMeal({
+        note: meal.note,
+        photo: meal.photo,
+        kcal: meal.kcal,
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat,
+        confidence: meal.confidence,
+        items: meal.items,
+      });
+    },
+    [addMeal]
   );
 
   const removeMeal = useCallback(async (id: number) => {
@@ -249,7 +289,7 @@ export default function VoedingsTracker() {
       <div style={styles.shell}>
         <header style={styles.header}>
           <div style={styles.eyebrow}>VOEDINGSTRACKER</div>
-          <h1 style={styles.h1}>Voedingslabel</h1>
+          <h1 style={styles.h1}>Foodtracker</h1>
           <p style={styles.sub}>Foto, activiteit en balans op één plek.</p>
         </header>
 
@@ -278,6 +318,8 @@ export default function VoedingsTracker() {
             onAddMeal={addMeal}
             onRemoveMeal={removeMeal}
             onUpdateMeal={updateMeal}
+            libraryMeals={libraryMeals}
+            onQuickAddMeal={quickAddMeal}
           />
         )}
 
@@ -313,6 +355,7 @@ export default function VoedingsTracker() {
             dateLabel={dateLabel}
             steps={steps}
             onStepsChange={handleStepsChange}
+            onLogSteps={logSteps}
             exerciseLog={exerciseLog}
             onAddExercise={addExercise}
             onRemoveExercise={removeExercise}
