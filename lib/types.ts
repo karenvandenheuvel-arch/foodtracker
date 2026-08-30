@@ -45,3 +45,11 @@ export type ProfileRecord = {
   age: number | null;
   gender: "man" | "vrouw";
 };
+
+export type DayBalance = {
+  date: string;
+  intakeKcal: number;
+  burnedKcal: number;
+  balance: number;
+  hasActivity: boolean;
+};

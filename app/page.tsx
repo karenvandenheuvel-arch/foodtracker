@@ -9,7 +9,7 @@ import ProfileView from "@/components/ProfileView";
 import DateNav from "@/components/DateNav";
 import { bmr, stepsKcal } from "@/lib/nutrition";
 import { formatDateLabel, todayIso } from "@/lib/date";
-import type { ExerciseEntry, Meal, MealItem } from "@/lib/types";
+import type { DayBalance, ExerciseEntry, Meal, MealItem } from "@/lib/types";
 
 type View = "log" | "dashboard" | "profiel";
 
@@ -31,6 +31,7 @@ export default function VoedingsTracker() {
   const [mealLog, setMealLog] = useState<Meal[]>([]);
   const [exerciseLog, setExerciseLog] = useState<ExerciseEntry[]>([]);
   const [libraryMeals, setLibraryMeals] = useState<Meal[]>([]);
+  const [history, setHistory] = useState<DayBalance[]>([]);
 
   const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,24 +119,43 @@ export default function VoedingsTracker() {
     refreshLibrary();
   }, [refreshLibrary]);
 
+  // ---- balance history (for the dashboard evolution chart) ----
+  const refreshHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/history?days=14");
+      if (!res.ok) return;
+      const data = await res.json();
+      setHistory(data);
+    } catch {
+      // history chart is a convenience feature; ignore failures silently
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshHistory();
+  }, [refreshHistory]);
+
   const profileComplete = Boolean(profile.weight && profile.height && profile.age);
   const weightForCalc = Number(profile.weight) || 70;
 
   // ---- profile persistence (debounced) ----
-  const handleProfileChange = useCallback((patch: Partial<ProfileInput>) => {
-    setProfile((prev) => {
-      const next = { ...prev, ...patch };
-      if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
-      profileSaveTimer.current = setTimeout(() => {
-        fetch("/api/profile", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(next),
-        });
-      }, 400);
-      return next;
-    });
-  }, []);
+  const handleProfileChange = useCallback(
+    (patch: Partial<ProfileInput>) => {
+      setProfile((prev) => {
+        const next = { ...prev, ...patch };
+        if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
+        profileSaveTimer.current = setTimeout(() => {
+          fetch("/api/profile", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(next),
+          }).then(() => refreshHistory());
+        }, 400);
+        return next;
+      });
+    },
+    [refreshHistory]
+  );
 
   const handleStepsChange = useCallback(
     (value: string) => {
@@ -153,7 +173,8 @@ export default function VoedingsTracker() {
       body: JSON.stringify({ steps: Number(steps) || 0 }),
     });
     if (!res.ok) throw new Error("Opslaan van stappen mislukt.");
-  }, [isToday, steps]);
+    refreshHistory();
+  }, [isToday, steps, refreshHistory]);
 
   // ---- meals ----
   // Note: the backend always logs against today's date, regardless of which
@@ -173,8 +194,9 @@ export default function VoedingsTracker() {
         setMealLog((prev) => [data as Meal, ...prev]);
       }
       refreshLibrary();
+      refreshHistory();
     },
-    [isToday, refreshLibrary]
+    [isToday, refreshLibrary, refreshHistory]
   );
 
   const quickAddMeal = useCallback(
@@ -193,21 +215,29 @@ export default function VoedingsTracker() {
     [addMeal]
   );
 
-  const removeMeal = useCallback(async (id: number) => {
-    setMealLog((prev) => prev.filter((m) => m.id !== id));
-    await fetch(`/api/meals/${id}`, { method: "DELETE" });
-  }, []);
+  const removeMeal = useCallback(
+    async (id: number) => {
+      setMealLog((prev) => prev.filter((m) => m.id !== id));
+      await fetch(`/api/meals/${id}`, { method: "DELETE" });
+      refreshHistory();
+    },
+    [refreshHistory]
+  );
 
-  const updateMeal = useCallback(async (id: number, patch: { note: string; items: MealItem[] }) => {
-    const res = await fetch(`/api/meals/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Bijwerken van maaltijd mislukt.");
-    setMealLog((prev) => prev.map((m) => (m.id === id ? (data as Meal) : m)));
-  }, []);
+  const updateMeal = useCallback(
+    async (id: number, patch: { note: string; items: MealItem[] }) => {
+      const res = await fetch(`/api/meals/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Bijwerken van maaltijd mislukt.");
+      setMealLog((prev) => prev.map((m) => (m.id === id ? (data as Meal) : m)));
+      refreshHistory();
+    },
+    [refreshHistory]
+  );
 
   // ---- exercises ----
   const addExercise = useCallback(
@@ -221,14 +251,19 @@ export default function VoedingsTracker() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Opslaan van sportsessie mislukt.");
       setExerciseLog((prev) => [data as ExerciseEntry, ...prev]);
+      refreshHistory();
     },
-    [weightForCalc, isToday]
+    [weightForCalc, isToday, refreshHistory]
   );
 
-  const removeExercise = useCallback(async (id: number) => {
-    setExerciseLog((prev) => prev.filter((e) => e.id !== id));
-    await fetch(`/api/exercises/${id}`, { method: "DELETE" });
-  }, []);
+  const removeExercise = useCallback(
+    async (id: number) => {
+      setExerciseLog((prev) => prev.filter((e) => e.id !== id));
+      await fetch(`/api/exercises/${id}`, { method: "DELETE" });
+      refreshHistory();
+    },
+    [refreshHistory]
+  );
 
   // ---- derived dashboard cijfers ----
   const intakeKcal = mealLog.reduce((s, m) => s + m.kcal, 0);
@@ -288,7 +323,6 @@ export default function VoedingsTracker() {
     <div style={styles.app}>
       <div style={styles.shell}>
         <header style={styles.header}>
-          <div style={styles.eyebrow}>VOEDINGSTRACKER</div>
           <h1 style={styles.h1}>Foodtracker</h1>
           <p style={styles.sub}>Foto, activiteit en balans op één plek.</p>
         </header>
@@ -341,6 +375,7 @@ export default function VoedingsTracker() {
             macroKcal={macroKcal}
             groupTotals={groupTotals}
             groupMax={groupMax}
+            history={history}
           />
         )}
 

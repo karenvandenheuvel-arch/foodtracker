@@ -2,7 +2,9 @@
 
 import { Info, Footprints, Dumbbell } from "lucide-react";
 import { styles } from "./styles";
-import { GROUP_COLORS, type FoodGroup } from "@/lib/nutrition";
+import { GROUP_COLORS, MACRO_COLORS, MACRO_TARGETS, macroStatus, type FoodGroup, type MacroKey } from "@/lib/nutrition";
+import BalanceHistoryChart from "./BalanceHistoryChart";
+import type { DayBalance } from "@/lib/types";
 
 type Props = {
   profileComplete: boolean;
@@ -21,6 +23,13 @@ type Props = {
   macroKcal: number;
   groupTotals: [string, number][];
   groupMax: number;
+  history: DayBalance[];
+};
+
+const MACRO_LABELS: Record<MacroKey, string> = {
+  protein: "Eiwit",
+  carbs: "Koolhydraten",
+  fat: "Vet",
 };
 
 export default function DashboardView({
@@ -40,7 +49,16 @@ export default function DashboardView({
   macroKcal,
   groupTotals,
   groupMax,
+  history,
 }: Props) {
+  const macroPct: Record<MacroKey, number> | null =
+    macroKcal > 0
+      ? {
+          protein: Math.round(((macroTotals.protein * 4) / macroKcal) * 100),
+          carbs: Math.round(((macroTotals.carbs * 4) / macroKcal) * 100),
+          fat: Math.round(((macroTotals.fat * 9) / macroKcal) * 100),
+        }
+      : null;
   return (
     <div style={styles.card}>
       {!profileComplete && (
@@ -95,23 +113,54 @@ export default function DashboardView({
       </div>
 
       <div style={styles.thinRule} />
+      <div style={styles.labelTitle}>EVOLUTIE</div>
+      <div style={styles.labelSub}>energiebalans van de afgelopen {history.length} dagen</div>
+      <BalanceHistoryChart data={history} />
+
+      <div style={styles.thinRule} />
       <div style={styles.labelTitle}>MACRO&apos;S</div>
       <div style={styles.labelSub}>
-        {macroKcal > 0
-          ? `${Math.round(((macroTotals.protein * 4) / macroKcal) * 100)}% eiwit · ${Math.round(
-              ((macroTotals.carbs * 4) / macroKcal) * 100
-            )}% koolhydraten · ${Math.round(((macroTotals.fat * 9) / macroKcal) * 100)}% vet`
-          : "nog geen data"}
+        {macroPct ? "vergeleken met de aanbevolen verdeling" : "nog geen data"}
       </div>
-      <div style={styles.macroBarTrack}>
-        {macroKcal > 0 && (
-          <>
-            <div style={{ width: `${((macroTotals.protein * 4) / macroKcal) * 100}%`, background: "#B24A3B" }} />
-            <div style={{ width: `${((macroTotals.carbs * 4) / macroKcal) * 100}%`, background: "#C97A2B" }} />
-            <div style={{ width: `${((macroTotals.fat * 9) / macroKcal) * 100}%`, background: "#7A8FA6" }} />
-          </>
-        )}
-      </div>
+      {macroPct && (
+        <div style={{ marginTop: 8 }}>
+          {(Object.keys(MACRO_TARGETS) as MacroKey[]).map((key) => {
+            const pct = macroPct[key];
+            const target = MACRO_TARGETS[key];
+            const status = macroStatus(pct, target);
+            const statusColor = status === "binnen bereik" ? "var(--ok)" : "var(--warn)";
+            return (
+              <div key={key} style={styles.macroBenchRow}>
+                <div style={styles.macroBenchHeader}>
+                  <span>{MACRO_LABELS[key]}</span>
+                  <span style={{ ...styles.macroBenchStatus, color: statusColor }}>
+                    {pct}% · {status}
+                  </span>
+                </div>
+                <div style={styles.macroBenchTrack}>
+                  <div
+                    style={{
+                      ...styles.macroBenchTarget,
+                      left: `${target.min}%`,
+                      width: `${target.max - target.min}%`,
+                    }}
+                  />
+                  <div
+                    style={{
+                      ...styles.macroBenchFill,
+                      width: `${Math.min(100, pct)}%`,
+                      background: MACRO_COLORS[key],
+                    }}
+                  />
+                </div>
+                <div style={styles.macroBenchCaption}>
+                  aanbevolen {target.min}–{target.max}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div style={styles.thinRule} />
       <div style={styles.labelTitle}>VOEDINGSGROEPEN</div>

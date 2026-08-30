@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Plus, Trash2, X } from "lucide-react";
+import { Check, Minus, Plus, Trash2, X } from "lucide-react";
 import { styles } from "./styles";
 import { FOOD_GROUPS } from "@/lib/nutrition";
 import type { Meal, MealItem } from "@/lib/types";
@@ -28,6 +28,22 @@ export default function EditMealForm({ meal, onCancel, onSave }: Props) {
 
   const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
+
+  const scaleItem = (index: number, factor: number) => {
+    setItems((prev) =>
+      prev.map((it, i) =>
+        i === index
+          ? {
+              ...it,
+              kcal: Math.round(it.kcal * factor),
+              protein: Math.round(it.protein * factor * 10) / 10,
+              carbs: Math.round(it.carbs * factor * 10) / 10,
+              fat: Math.round(it.fat * factor * 10) / 10,
+            }
+          : it
+      )
+    );
+  };
 
   const totalKcal = items.reduce((s, it) => s + (Number(it.kcal) || 0), 0);
 
@@ -104,6 +120,27 @@ export default function EditMealForm({ meal, onCancel, onSave }: Props) {
               style={{ ...styles.input, ...styles.editItemNum }}
               placeholder="vet g"
             />
+          </div>
+          <div style={styles.editItemQuantityRow}>
+            <span style={styles.editItemQuantityLabel}>Hoeveelheid aanpassen (schaalt kcal &amp; macro&apos;s mee)</span>
+            <button
+              style={styles.quantityStepBtn}
+              onClick={() => scaleItem(i, 0.8)}
+              type="button"
+              aria-label="Minder van dit item"
+              title="20% minder"
+            >
+              <Minus size={12} />
+            </button>
+            <button
+              style={styles.quantityStepBtn}
+              onClick={() => scaleItem(i, 1.25)}
+              type="button"
+              aria-label="Meer van dit item"
+              title="25% meer"
+            >
+              <Plus size={12} />
+            </button>
           </div>
         </div>
       ))}
