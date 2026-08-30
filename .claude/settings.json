@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__github__create_pull_request",
+        "hooks": [
+          {
+            "type": "agent",
+            "model": "claude-sonnet-5",
+            "timeout": 600,
+            "statusMessage": "Running independent PR review...",
+            "prompt": "A pull request was just created by the main session. Hook input JSON (the create_pull_request tool call and its result) follows:\n$ARGUMENTS\n\nDo an independent second-opinion code review of that PR:\n1. Parse the JSON above for owner, repo, base branch, head branch, and the PR url/number.\n2. The current working directory is normally already a checkout with the head branch's commits present. Run `git fetch origin <base> <head>` then `git diff origin/<base>...origin/<head>` to get the exact diff the PR contains. If this working directory isn't that repo (or the branches aren't reachable), say so plainly instead of guessing.\n3. Review the diff for real correctness bugs, security issues, and reuse/simplification/efficiency problems. If a `code-review` skill is available to you, prefer invoking it (high effort) over an ad hoc review.\n4. Do NOT post anything to GitHub - no PR comments, no reviews, no approvals, no status changes. This is a private review whose only output is your reply back into this conversation.\n5. Reply with a concise report: concrete issues found (file/line, what's wrong, suggested fix) first, minor nits after, or a plain one-line statement if nothing of substance was found. Stay under ~400 words, no preamble."
+          }
+        ]
+      }
+    ]
+  }
+}
