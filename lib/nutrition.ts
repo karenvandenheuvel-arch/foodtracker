@@ -35,6 +35,7 @@ export const EXERCISE_TYPES = [
   { name: "Zwemmen", met: 6.0 },
   { name: "Krachttraining", met: 5.0 },
   { name: "Cardio / fitness", met: 7.0 },
+  { name: "Aerobics", met: 7.3 },
   { name: "Yoga", met: 2.5 },
   { name: "Voetbal", met: 7.0 },
 ] as const;
@@ -59,4 +60,28 @@ export function bmr({ weight, height, age, gender }: Profile) {
   if (!weight || !height || !age) return null;
   const base = 10 * weight + 6.25 * height - 5 * age;
   return Math.round(gender === "vrouw" ? base - 161 : base + 5);
+}
+
+// Algemene richtlijnen (AMDR) voor het aandeel van elke macro in de dagelijkse
+// energie-inname, gebruikt als benchmark op het dashboard.
+export type MacroKey = "protein" | "carbs" | "fat";
+
+export const MACRO_TARGETS: Record<MacroKey, { min: number; max: number }> = {
+  protein: { min: 10, max: 20 },
+  carbs: { min: 45, max: 65 },
+  fat: { min: 20, max: 35 },
+};
+
+export const MACRO_COLORS: Record<MacroKey, string> = {
+  protein: "#B24A3B",
+  carbs: "#C97A2B",
+  fat: "#7A8FA6",
+};
+
+export type MacroStatus = "laag" | "binnen bereik" | "hoog";
+
+export function macroStatus(pct: number, target: { min: number; max: number }): MacroStatus {
+  if (pct < target.min) return "laag";
+  if (pct > target.max) return "hoog";
+  return "binnen bereik";
 }

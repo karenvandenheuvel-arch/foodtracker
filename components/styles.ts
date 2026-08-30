@@ -22,13 +22,6 @@ export const styles: StyleMap = {
   } as CSSProperties,
   shell: { width: "100%", maxWidth: 420 },
   header: { marginBottom: 16 },
-  eyebrow: {
-    fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-    fontSize: 11,
-    letterSpacing: "0.12em",
-    color: "var(--ink-soft)",
-    marginBottom: 6,
-  },
   h1: {
     fontFamily: "'Arial Narrow', Arial, sans-serif",
     fontWeight: 800,
@@ -261,7 +254,6 @@ export const styles: StyleMap = {
   burnRow: { display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "4px 0", color: "var(--ink-soft)" },
   mono: { fontFamily: "ui-monospace, monospace", color: "var(--ink)" },
 
-  macroBarTrack: { display: "flex", height: 10, borderRadius: 5, overflow: "hidden", background: "#F2F1EB", marginTop: 8 },
   emptyText: { fontSize: 12.5, color: "var(--ink-soft)" },
 
   groupRow: { marginBottom: 10 },
@@ -348,4 +340,34 @@ export const styles: StyleMap = {
   editItemGrid: { display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: 6 },
   editItemNum: { padding: "6px 4px", fontSize: 12, textAlign: "center" },
   editMealTotal: { fontSize: 12.5, color: "var(--ink-soft)", margin: "4px 0 10px" },
+
+  editItemQuantityRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 2 },
+  editItemQuantityLabel: { fontSize: 11.5, color: "var(--ink-soft)", flex: 1 },
+  quantityStepBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    border: "1.5px solid var(--ink)",
+    background: "var(--panel)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+
+  historyInfoRow: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 },
+  historyInfoDate: { fontSize: 12.5, fontWeight: 700, textTransform: "capitalize" },
+  historyInfoValue: { fontFamily: "ui-monospace, monospace", fontWeight: 800, fontSize: 15 },
+  historyLegend: { display: "flex", flexWrap: "wrap", gap: 12, marginTop: 6 },
+  historyLegendItem: { display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "var(--ink-soft)" },
+  historyLegendDot: { display: "inline-block", width: 7, height: 7, borderRadius: "50%" },
+
+  macroBenchRow: { marginBottom: 12 },
+  macroBenchHeader: { display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 },
+  macroBenchStatus: { fontWeight: 700 },
+  macroBenchTrack: { position: "relative", height: 10, borderRadius: 5, background: "#F2F1EB", overflow: "hidden" },
+  macroBenchTarget: { position: "absolute", top: 0, bottom: 0, background: "rgba(26,26,23,0.14)" },
+  macroBenchFill: { position: "absolute", top: 0, bottom: 0, left: 0, borderRadius: 5 },
+  macroBenchCaption: { fontSize: 10.5, color: "var(--ink-soft)", marginTop: 3 },
 };

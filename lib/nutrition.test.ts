@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bmr, exerciseKcal, stepsKcal } from "./nutrition";
+import { bmr, exerciseKcal, macroStatus, stepsKcal } from "./nutrition";
 
 describe("bmr", () => {
   it("returns null when any required field is missing", () => {
@@ -38,5 +38,21 @@ describe("stepsKcal", () => {
 
   it("returns 0 for zero steps", () => {
     expect(stepsKcal(0, 70)).toBe(0);
+  });
+});
+
+describe("macroStatus", () => {
+  const target = { min: 10, max: 20 };
+
+  it("flags a percentage below the target range as too low", () => {
+    expect(macroStatus(5, target)).toBe("laag");
+  });
+
+  it("flags a percentage within the target range as on target", () => {
+    expect(macroStatus(15, target)).toBe("binnen bereik");
+  });
+
+  it("flags a percentage above the target range as too high", () => {
+    expect(macroStatus(25, target)).toBe("hoog");
   });
 });
