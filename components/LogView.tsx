@@ -253,7 +253,6 @@ export default function LogView({
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={handlePhotoChange}
                   style={{ display: "none" }}
                 />
