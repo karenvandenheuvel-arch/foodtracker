@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, todayIso } from "@/lib/db";
+import { normalizeLogDate } from "@/lib/date";
 import { EXERCISE_TYPES, exerciseKcal } from "@/lib/nutrition";
 import type { ExerciseEntry } from "@/lib/types";
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, duration, weightKg } = body;
+  const { name, duration, weightKg, date: dateInput } = body;
 
   const type = EXERCISE_TYPES.find((t) => t.name === name);
   const durationNum = Number(duration);
@@ -24,10 +25,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ongeldige sportsessie." }, { status: 400 });
   }
 
+  const date = normalizeLogDate(dateInput);
+  if (!date) {
+    return NextResponse.json({ error: "Ongeldige datum." }, { status: 400 });
+  }
+
   const weight = Number(weightKg) > 0 ? Number(weightKg) : 70;
   const kcal = exerciseKcal(type.met, weight, durationNum);
 
-  const date = todayIso();
   const time = new Date().toISOString();
 
   const db = getDb();

@@ -61,4 +61,41 @@ describe("POST /api/meals", () => {
     expect(created.photo).toBe("");
     expect(created.items).toEqual(withoutPhoto.items);
   });
+
+  it("logs a meal against a past date when one is supplied", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/meals", {
+        method: "POST",
+        body: JSON.stringify({ ...validMealBody, date: "2026-01-01" }),
+      })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.date).toBe("2026-01-01");
+
+    const listRes = await GET(new Request("http://localhost/api/meals?date=2026-01-01"));
+    const list = await listRes.json();
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe(created.id);
+  });
+
+  it("rejects a date in the future", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/meals", {
+        method: "POST",
+        body: JSON.stringify({ ...validMealBody, date: "2999-01-01" }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a malformed date", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/meals", {
+        method: "POST",
+        body: JSON.stringify({ ...validMealBody, date: "not-a-date" }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
 });

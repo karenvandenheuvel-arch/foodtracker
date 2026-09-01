@@ -61,4 +61,42 @@ describe("POST /api/exercises", () => {
     const created = await res.json();
     expect(created.kcal).toBe(360);
   });
+
+  it("accepts the new Crosstrainer and Roeitrainer exercise types", async () => {
+    for (const name of ["Crosstrainer", "Roeitrainer"]) {
+      const res = await POST(
+        new Request("http://localhost/api/exercises", {
+          method: "POST",
+          body: JSON.stringify({ name, duration: 30, weightKg: 70 }),
+        })
+      );
+      expect(res.status).toBe(201);
+      expect((await res.json()).name).toBe(name);
+    }
+  });
+
+  it("logs a session against a past date when one is supplied", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/exercises", {
+        method: "POST",
+        body: JSON.stringify({ name: "Hardlopen", duration: 30, weightKg: 70, date: "2026-01-01" }),
+      })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.date).toBe("2026-01-01");
+
+    const list = await (await GET(new Request("http://localhost/api/exercises?date=2026-01-01"))).json();
+    expect(list).toHaveLength(1);
+  });
+
+  it("rejects a date in the future", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/exercises", {
+        method: "POST",
+        body: JSON.stringify({ name: "Hardlopen", duration: 30, weightKg: 70, date: "2999-01-01" }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
 });

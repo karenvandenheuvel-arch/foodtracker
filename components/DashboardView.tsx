@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Info, Footprints, Dumbbell } from "lucide-react";
 import { styles } from "./styles";
 import { GROUP_COLORS, MACRO_COLORS, MACRO_TARGETS, macroStatus, type FoodGroup, type MacroKey } from "@/lib/nutrition";
 import BalanceHistoryChart from "./BalanceHistoryChart";
-import type { DayBalance } from "@/lib/types";
+import BreakdownModal, { type BreakdownRow } from "./BreakdownModal";
+import type { DayBalance, Meal } from "@/lib/types";
 
 type Props = {
+  mealLog: Meal[];
   profileComplete: boolean;
   weightForCalc: number;
   isToday: boolean;
@@ -32,7 +35,31 @@ const MACRO_LABELS: Record<MacroKey, string> = {
   fat: "Vet",
 };
 
+function macroBreakdown(mealLog: Meal[], macro: MacroKey): BreakdownRow[] {
+  const rows: BreakdownRow[] = [];
+  mealLog.forEach((m) => {
+    m.items.forEach((it) => {
+      const value = Math.round(it[macro] * 10) / 10;
+      if (value <= 0) return;
+      rows.push({ label: it.name, sublabel: m.note || undefined, value });
+    });
+  });
+  return rows.sort((a, b) => b.value - a.value);
+}
+
+function groupBreakdown(mealLog: Meal[], group: FoodGroup): BreakdownRow[] {
+  const rows: BreakdownRow[] = [];
+  mealLog.forEach((m) => {
+    m.items.forEach((it) => {
+      if (it.group !== group) return;
+      rows.push({ label: it.name, sublabel: m.note || undefined, value: it.kcal });
+    });
+  });
+  return rows.sort((a, b) => b.value - a.value);
+}
+
 export default function DashboardView({
+  mealLog,
   profileComplete,
   weightForCalc,
   isToday,
@@ -51,6 +78,8 @@ export default function DashboardView({
   groupMax,
   history,
 }: Props) {
+  const [openMacro, setOpenMacro] = useState<MacroKey | null>(null);
+  const [openGroup, setOpenGroup] = useState<FoodGroup | null>(null);
   const macroPct: Record<MacroKey, number> | null =
     macroKcal > 0
       ? {
@@ -130,7 +159,21 @@ export default function DashboardView({
             const status = macroStatus(pct, target);
             const statusColor = status === "binnen bereik" ? "var(--ok)" : "var(--warn)";
             return (
-              <div key={key} style={styles.macroBenchRow}>
+              <button
+                key={key}
+                type="button"
+                onClick={() => setOpenMacro(key)}
+                style={{
+                  ...styles.macroBenchRow,
+                  display: "block",
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
                 <div style={styles.macroBenchHeader}>
                   <span>{MACRO_LABELS[key]}</span>
                   <span style={{ ...styles.macroBenchStatus, color: statusColor }}>
@@ -156,7 +199,7 @@ export default function DashboardView({
                 <div style={styles.macroBenchCaption}>
                   aanbevolen {target.min}–{target.max}%
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -164,11 +207,25 @@ export default function DashboardView({
 
       <div style={styles.thinRule} />
       <div style={styles.labelTitle}>VOEDINGSGROEPEN</div>
-      <div style={styles.labelSub}>kcal per groep, vandaag</div>
+      <div style={styles.labelSub}>kcal per groep {isToday ? "vandaag" : `— ${dateLabel.toLowerCase()}`}</div>
       <div style={{ marginTop: 8 }}>
         {groupTotals.length === 0 && <div style={styles.emptyText}>Nog geen maaltijden gelogd.</div>}
         {groupTotals.map(([group, kcal]) => (
-          <div key={group} style={styles.groupRow}>
+          <button
+            key={group}
+            type="button"
+            onClick={() => setOpenGroup(group as FoodGroup)}
+            style={{
+              ...styles.groupRow,
+              display: "block",
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
             <div style={styles.groupLabelRow}>
               <span style={styles.groupDot}>
                 <span
@@ -187,9 +244,31 @@ export default function DashboardView({
             <div style={styles.groupBarTrack}>
               <div style={{ width: `${(kcal / groupMax) * 100}%`, background: GROUP_COLORS[group as FoodGroup] || "#8A887E" }} />
             </div>
-          </div>
+          </button>
         ))}
       </div>
+
+      {openMacro && (
+        <BreakdownModal
+          title={MACRO_LABELS[openMacro].toUpperCase()}
+          subtitle={`waar kwam ${MACRO_LABELS[openMacro].toLowerCase()} vandaan${
+            isToday ? " vandaag" : ` — ${dateLabel.toLowerCase()}`
+          }`}
+          unit="g"
+          rows={macroBreakdown(mealLog, openMacro)}
+          onClose={() => setOpenMacro(null)}
+        />
+      )}
+
+      {openGroup && (
+        <BreakdownModal
+          title={openGroup.toUpperCase()}
+          subtitle={`kcal per item${isToday ? " vandaag" : ` — ${dateLabel.toLowerCase()}`}`}
+          unit="kcal"
+          rows={groupBreakdown(mealLog, openGroup)}
+          onClose={() => setOpenGroup(null)}
+        />
+      )}
     </div>
   );
 }
