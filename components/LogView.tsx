@@ -178,16 +178,16 @@ export default function LogView({
       {!isToday && (
         <div style={styles.card}>
           <p style={styles.hint}>
-            <Info size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Je bekijkt {dateLabel.toLowerCase()}.
-            Nieuwe maaltijden loggen kan alleen voor vandaag.
+            <Info size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Je logt voor{" "}
+            {dateLabel.toLowerCase()}, niet voor vandaag.
           </p>
         </div>
       )}
 
-      {isToday && status !== "result" && libraryMeals.length > 0 && (
+      {status !== "result" && libraryMeals.length > 0 && (
         <div style={{ ...styles.card, marginBottom: 16 }}>
           <div style={styles.labelTitle}>EERDER GELOGD</div>
-          <div style={styles.labelSub}>tik om vandaag opnieuw te loggen</div>
+          <div style={styles.labelSub}>tik om {isToday ? "vandaag" : dateLabel.toLowerCase()} opnieuw te loggen</div>
           <div style={styles.libraryStrip}>
             {libraryMeals.map((m) => (
               <button
@@ -218,7 +218,7 @@ export default function LogView({
         </div>
       )}
 
-      {isToday && status !== "result" && (
+      {status !== "result" && (
         <div style={styles.card}>
           <div style={styles.modeToggle}>
             <button
@@ -384,7 +384,8 @@ export default function LogView({
               <X size={15} /> Opnieuw
             </button>
             <button style={{ ...styles.primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={confirmLog} disabled={saving}>
-              {saving ? <Loader2 size={15} style={{ animation: "spin 0.9s linear infinite" }} /> : <Check size={15} />} Loggen
+              {saving ? <Loader2 size={15} style={{ animation: "spin 0.9s linear infinite" }} /> : <Check size={15} />}{" "}
+              {isToday ? "Loggen" : `Loggen voor ${dateLabel.toLowerCase()}`}
             </button>
           </div>
         </div>
@@ -424,8 +425,8 @@ export default function LogView({
                   style={styles.iconBtn}
                   onClick={() => quickAdd(m)}
                   disabled={quickAddingKey !== null}
-                  aria-label="Opnieuw loggen voor vandaag"
-                  title="Opnieuw loggen voor vandaag"
+                  aria-label={`Opnieuw loggen voor ${isToday ? "vandaag" : dateLabel.toLowerCase()}`}
+                  title={`Opnieuw loggen voor ${isToday ? "vandaag" : dateLabel.toLowerCase()}`}
                 >
                   {quickAddingKey === mealKey(m) ? (
                     <Loader2 size={13} style={{ animation: "spin 0.9s linear infinite" }} />

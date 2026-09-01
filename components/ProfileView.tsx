@@ -175,65 +175,52 @@ export default function ProfileView({
           }}
           style={{ ...styles.input, flex: 1 }}
           placeholder="bv. 8500"
-          disabled={!isToday}
         />
         <span style={styles.mono}>{steps ? stepsKcal(Number(steps), weightForCalc) : 0} kcal</span>
       </div>
-      {isToday && (
-        <button
-          style={{ ...styles.primaryBtn, marginTop: 10, opacity: loggingSteps ? 0.6 : 1 }}
-          onClick={logSteps}
-          disabled={loggingSteps}
-        >
-          {loggingSteps ? (
-            <Loader2 size={15} style={{ animation: "spin 0.9s linear infinite" }} />
-          ) : stepsLogged ? (
-            <Check size={15} />
-          ) : (
-            <Footprints size={15} />
-          )}
-          {stepsLogged ? "Opgeslagen" : "Stappen loggen"}
-        </button>
-      )}
-      {!isToday && <p style={styles.hint}>Stappen kun je alleen voor vandaag bijwerken.</p>}
+      <button
+        style={{ ...styles.primaryBtn, marginTop: 10, opacity: loggingSteps ? 0.6 : 1 }}
+        onClick={logSteps}
+        disabled={loggingSteps}
+      >
+        {loggingSteps ? (
+          <Loader2 size={15} style={{ animation: "spin 0.9s linear infinite" }} />
+        ) : stepsLogged ? (
+          <Check size={15} />
+        ) : (
+          <Footprints size={15} />
+        )}
+        {stepsLogged ? "Opgeslagen" : isToday ? "Stappen loggen" : `Stappen loggen voor ${dateLabel.toLowerCase()}`}
+      </button>
 
       <div style={styles.thinRule} />
 
-      {isToday ? (
-        <>
-          <div style={styles.labelTitle}>SPORTSESSIE TOEVOEGEN</div>
-          <div style={styles.formGrid}>
-            <div>
-              <label style={styles.label}>Type</label>
-              <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} style={styles.input}>
-                {EXERCISE_TYPES.map((t) => (
-                  <option key={t.name} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>Duur (min)</label>
-              <input
-                type="number"
-                value={exerciseDuration}
-                onChange={(e) => setExerciseDuration(e.target.value)}
-                style={styles.input}
-                placeholder="30"
-              />
-            </div>
-          </div>
-          <button style={{ ...styles.primaryBtn, marginTop: 10, opacity: adding ? 0.6 : 1 }} onClick={addExercise} disabled={adding}>
-            <Plus size={15} /> Sessie loggen
-          </button>
-        </>
-      ) : (
-        <>
-          <div style={styles.labelTitle}>SPORT</div>
-          <p style={styles.hint}>Nieuwe sportsessies loggen kan alleen voor vandaag.</p>
-        </>
-      )}
+      <div style={styles.labelTitle}>{isToday ? "SPORTSESSIE TOEVOEGEN" : `SPORTSESSIE TOEVOEGEN — ${dateLabel.toUpperCase()}`}</div>
+      <div style={styles.formGrid}>
+        <div>
+          <label style={styles.label}>Type</label>
+          <select value={exerciseType} onChange={(e) => setExerciseType(e.target.value)} style={styles.input}>
+            {EXERCISE_TYPES.map((t) => (
+              <option key={t.name} value={t.name}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={styles.label}>Duur (min)</label>
+          <input
+            type="number"
+            value={exerciseDuration}
+            onChange={(e) => setExerciseDuration(e.target.value)}
+            style={styles.input}
+            placeholder="30"
+          />
+        </div>
+      </div>
+      <button style={{ ...styles.primaryBtn, marginTop: 10, opacity: adding ? 0.6 : 1 }} onClick={addExercise} disabled={adding}>
+        <Plus size={15} /> {isToday ? "Sessie loggen" : `Sessie loggen voor ${dateLabel.toLowerCase()}`}
+      </button>
 
       {exerciseLog.length > 0 && (
         <div style={styles.historySection}>

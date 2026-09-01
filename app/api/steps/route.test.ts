@@ -29,4 +29,28 @@ describe("PUT /api/steps", () => {
     expect(body2.steps).toBe(0);
     expect(body2.date).toBe(body1.date);
   });
+
+  it("upserts steps for a past date when one is supplied", async () => {
+    const res = await PUT(
+      new Request("http://localhost/api/steps", {
+        method: "PUT",
+        body: JSON.stringify({ steps: 3000, date: "2026-01-01" }),
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ date: "2026-01-01", steps: 3000 });
+
+    const getRes = await GET(new Request("http://localhost/api/steps?date=2026-01-01"));
+    expect(await getRes.json()).toEqual({ date: "2026-01-01", steps: 3000 });
+  });
+
+  it("rejects a date in the future", async () => {
+    const res = await PUT(
+      new Request("http://localhost/api/steps", {
+        method: "PUT",
+        body: JSON.stringify({ steps: 1000, date: "2999-01-01" }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
 });

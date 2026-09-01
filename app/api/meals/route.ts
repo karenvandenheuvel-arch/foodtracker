@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, todayIso } from "@/lib/db";
+import { normalizeLogDate } from "@/lib/date";
 import { rowToMeal, type MealRow } from "@/lib/meals";
 
 export async function GET(request: Request) {
@@ -15,14 +16,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { note = "", photo, kcal, protein, carbs, fat, confidence, items } = body;
+  const { note = "", photo, kcal, protein, carbs, fat, confidence, items, date: dateInput } = body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Ongeldige maaltijdgegevens." }, { status: 400 });
   }
 
+  const date = normalizeLogDate(dateInput);
+  if (!date) {
+    return NextResponse.json({ error: "Ongeldige datum." }, { status: 400 });
+  }
+
   const now = new Date();
-  const date = todayIso();
   const time = now.toISOString();
   const photoValue = typeof photo === "string" ? photo : "";
 

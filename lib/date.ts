@@ -15,3 +15,15 @@ export function formatDateLabel(dateIso: string) {
   const d = new Date(`${dateIso}T00:00:00Z`);
   return d.toLocaleDateString("nl-BE", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 }
+
+export function isValidDateIso(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+// Resolves a client-supplied `date` field for logging endpoints: missing
+// defaults to today, anything malformed or in the future is rejected (null).
+export function normalizeLogDate(value: unknown): string | null {
+  if (value === undefined || value === null) return todayIso();
+  if (!isValidDateIso(value)) return null;
+  return value <= todayIso() ? value : null;
+}

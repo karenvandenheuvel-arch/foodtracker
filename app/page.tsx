@@ -157,46 +157,37 @@ export default function VoedingsTracker() {
     [refreshHistory]
   );
 
-  const handleStepsChange = useCallback(
-    (value: string) => {
-      if (!isToday) return;
-      setSteps(value);
-    },
-    [isToday]
-  );
+  const handleStepsChange = useCallback((value: string) => {
+    setSteps(value);
+  }, []);
 
   const logSteps = useCallback(async () => {
-    if (!isToday) return;
     const res = await fetch("/api/steps", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ steps: Number(steps) || 0 }),
+      body: JSON.stringify({ steps: Number(steps) || 0, date: selectedDate }),
     });
     if (!res.ok) throw new Error("Opslaan van stappen mislukt.");
     refreshHistory();
-  }, [isToday, steps, refreshHistory]);
+  }, [steps, selectedDate, refreshHistory]);
 
   // ---- meals ----
-  // Note: the backend always logs against today's date, regardless of which
-  // date is currently being viewed (quick re-logging an older meal targets
-  // "today", not the viewed date) — so only merge the result into the visible
-  // list when today's log is what's on screen.
+  // Meals are logged against the currently viewed date (selectedDate), so
+  // logging for a past day works the same as logging for today.
   const addMeal = useCallback(
     async (meal: NewMealInput) => {
       const res = await fetch("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(meal),
+        body: JSON.stringify({ ...meal, date: selectedDate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Opslaan van maaltijd mislukt.");
-      if (isToday) {
-        setMealLog((prev) => [data as Meal, ...prev]);
-      }
+      setMealLog((prev) => [data as Meal, ...prev]);
       refreshLibrary();
       refreshHistory();
     },
-    [isToday, refreshLibrary, refreshHistory]
+    [selectedDate, refreshLibrary, refreshHistory]
   );
 
   const quickAddMeal = useCallback(
@@ -242,18 +233,17 @@ export default function VoedingsTracker() {
   // ---- exercises ----
   const addExercise = useCallback(
     async (name: string, duration: number) => {
-      if (!isToday) return;
       const res = await fetch("/api/exercises", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, duration, weightKg: weightForCalc }),
+        body: JSON.stringify({ name, duration, weightKg: weightForCalc, date: selectedDate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Opslaan van sportsessie mislukt.");
       setExerciseLog((prev) => [data as ExerciseEntry, ...prev]);
       refreshHistory();
     },
-    [weightForCalc, isToday, refreshHistory]
+    [weightForCalc, selectedDate, refreshHistory]
   );
 
   const removeExercise = useCallback(
@@ -359,6 +349,7 @@ export default function VoedingsTracker() {
 
         {view === "dashboard" && (
           <DashboardView
+            mealLog={mealLog}
             profileComplete={profileComplete}
             weightForCalc={weightForCalc}
             isToday={isToday}

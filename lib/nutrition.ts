@@ -33,6 +33,8 @@ export const EXERCISE_TYPES = [
   { name: "Hardlopen", met: 9.8 },
   { name: "Fietsen", met: 7.5 },
   { name: "Zwemmen", met: 6.0 },
+  { name: "Crosstrainer", met: 5.0 },
+  { name: "Roeitrainer", met: 7.0 },
   { name: "Krachttraining", met: 5.0 },
   { name: "Cardio / fitness", met: 7.0 },
   { name: "Aerobics", met: 7.3 },
